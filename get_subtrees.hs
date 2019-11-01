@@ -38,4 +38,5 @@ get_children_combinations (Node l ts n) r = map (\x -> (Node l x n)) (combinatio
 
 subtrees :: Tree a -> Int -> Int -> [Tree a]
 subtrees tree 1 _ = [get_node tree]
+subtrees (Node l [] d) _ _ = [get_node tree]
 subtrees tree max_depth max_children = concat (map (\x -> subtrees tree x max_children) (count max_depth))
