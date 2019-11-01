@@ -1,10 +1,10 @@
 type Depth = Int
 data Tree a = Void | Node a [Tree a] Depth
-    deriving (Eq, Show)
+    deriving (Eq, Show, Ord)
 
 count :: Int -> [Int]
 count 1 = [1]
-count n = [n] ++ (count n-1)
+count n = [n] ++ (count (n-1))
 
 mass_update_depth :: [Tree a] -> [Tree a]
 mass_update_depth ts = map (\x -> update_depth x) ts
@@ -29,13 +29,13 @@ get_node (Node l ts d) = (Node l [] 1)
 combinations :: Ord a => [a] -> Int -> [[a]]
 combinations xs n = [x | x <- mapM (const xs) [1..(max n (length xs))], head x < head (tail x) ]
 
-get_children_combinations :: Tree a -> Int -> [Tree a]
+get_children_combinations :: Ord a => Tree a -> Int -> [Tree a]
 get_children_combinations Void _ = []
 get_children_combinations (Node l [] n) _ = []
-get_children_combinations (Node l ts n) r = combinations ts r
+get_children_combinations (Node l ts n) r = map (\x -> (Node l x n)) (combinations ts r)
 
 -- Donde pingo meto las combinaciones de children?
 
 subtrees :: Tree a -> Int -> Int -> [Tree a]
-subtrees tree 1 _ = get_node tree
-subtrees tree max_depth max_children = concat (map (\x -> subtrees tree x max_children) (count max_depth)
+subtrees tree 1 _ = [get_node tree]
+subtrees tree max_depth max_children = concat (map (\x -> subtrees tree x max_children) (count max_depth))
