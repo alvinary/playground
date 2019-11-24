@@ -1,9 +1,9 @@
-"Agregar funcionalidad para filtrar por año y por cantidad de citas"
-
 import csv
 import requests
 import json
+from collections import namedtuple
 from bs4 import BeautifulSoup
+import peewee
 
 SITE = "scholar.google"
 USER_AGENT = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:70.0) Gecko/20100101 Firefox/70.0"
@@ -75,6 +75,12 @@ def get_links(results_soup, acceptance_condition):
     urls = [url["href"] for url in urls if acceptance_condition(url)]
     return urls
 
+def get_article_divs(results_soup):
+    pass
+
+def get_author_divs(results_soup):
+    pass
+
 def get_author(results_soup):
     pass
 
@@ -100,6 +106,11 @@ def get_bibtex(results_soup):
 
 # Graph
 
+article = namedtuple("Article", ["title", "author", "year", "keywords", "citations"])
+
+def make_edge(article_1, article_2):
+    pass
+
 def edges_to_graph(edges):
     pass
 
@@ -112,7 +123,7 @@ def page_rank(scholar_network):
 
 
 # Test
-
+'''
 sample_query_dict = make_query_dict()
 sample_query_dict["all"] = ["attention", "transformers", "neural"]
 
@@ -121,7 +132,7 @@ my_soup = get_soup_from_url(my_url)
 my_urls = get_links(my_soup, return_true)
 for happy_url in my_urls:
     print(happy_url)
-
+'''
 # whole item: gs_r.gs_or.gs_scl
 # title: gs_rt
 # author: gs_a
