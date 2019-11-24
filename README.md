@@ -5,4 +5,4 @@ Assorted functions, including
 * A small set of haskell definitions that can be used to generate typed expressions (geneval.hs).
 
 Currently as Draft:
-* Haskell implementation of a function that enumerates the subtrees of a tree whose depth is at most "d" and have at most "c" children (get_subtrees.hs). ToDo: implement using streams.
+* A python cli utility for "charting" citation networks based on article metadata from Google Scholar (scholar_network.py).
