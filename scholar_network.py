@@ -64,11 +64,17 @@ def get_soup_from_url(query_url):
 
 def site_in_url(url):
     '''Check if the SITE string is part of the first 40 characters of an url.'''
-    return (SITE in url["href"][0:40])
+    return SITE in url["href"][0:40]
 
 def return_true(url):
     '''Return True for any argument.'''
     return True
+
+def get_div_by_class(soup, identifier_string):
+    '''Given a BeautifulSoup object, return all html elements with the requested
+    identifier.'''
+    values = soup.find_all("div", class_=identifier_string)
+    return values
 
 def get_links(results_soup, acceptance_condition):
     urls = results_soup.find_all('a', href=True)
@@ -76,31 +82,43 @@ def get_links(results_soup, acceptance_condition):
     return urls
 
 def get_article_divs(results_soup):
-    pass
+    '''Return all divs for articles.'''
+    article_divs = get_div_by_class(results_soup, "gs_r gs_or gs_scl")
+    return article_divs
 
 def get_author_divs(results_soup):
-    pass
-
-def get_author(results_soup):
-    pass
-
-def get_abstract(results_soup):
-    pass
-
-def get_references(results_soup):
-    pass
-
-def get_citations_page(results_soup):
-    pass
-
-def get_citations(results_soup):
     pass
 
 def get_next_page(results_soup):
     pass
 
-def get_bibtex(results_soup):
+def get_author(article_div):
     pass
+
+def get_abstract(article_div):
+    pass
+
+def get_references(article_div):
+    pass
+
+def get_citations_count(article_div):
+    pass
+
+def get_citations_page(article_div):
+    pass
+
+def get_citations(article_div):
+    pass
+
+def get_bibtex(article_div):
+    pass
+
+# Printing
+
+def get_title_text(article_div):
+    title = article_div.find("h3", class_="gs_rt")
+    title = title.get_text()
+    return title
 
 # Text
 
@@ -123,16 +141,21 @@ def page_rank(scholar_network):
 
 
 # Test
-'''
-sample_query_dict = make_query_dict()
-sample_query_dict["all"] = ["attention", "transformers", "neural"]
 
-my_url = get_query_url(sample_query_dict)
+sample_query_dict = make_query_dict()
+sample_query_dict_2 = make_query_dict()
+sample_query_dict_3 = make_query_dict()
+sample_query_dict["all"] = ["attention", "transformers", "neural"]
+sample_query_dict_2["all"] = ["video", "understanding", "deep", "learning"]
+sample_query_dict_3["all"] = ["causal", "inference", "graphical", "models"]
+
+my_url = get_query_url(sample_query_dict_3)
 my_soup = get_soup_from_url(my_url)
-my_urls = get_links(my_soup, return_true)
-for happy_url in my_urls:
-    print(happy_url)
-'''
+my_articles = get_article_divs(my_soup)
+for i in my_articles:
+    print(get_title_text(i))
+
+
 # whole item: gs_r.gs_or.gs_scl
 # title: gs_rt
 # author: gs_a
