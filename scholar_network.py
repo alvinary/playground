@@ -4,6 +4,7 @@ import json
 from collections import namedtuple
 from bs4 import BeautifulSoup
 import peewee
+import networkx
 
 SITE = "scholar.google"
 USER_AGENT = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:70.0) Gecko/20100101 Firefox/70.0"
@@ -112,6 +113,9 @@ def get_citations(article_div):
 
 def get_bibtex(article_div):
     pass
+    
+def query_from_article(article_name):
+	pass
 
 # Printing
 
