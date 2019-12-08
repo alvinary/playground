@@ -207,7 +207,7 @@ endow [] (Simple t n) = error "The simple expression provided as argument has no
 endow (i:is) (Simple t n) | (first i) == (Simple t n) = i
                           | otherwise = endow is (Simple t n)
 endow i (Compound t e1 e2 s) | (s == L) = ((Compound t e1 e2 L), (compose_drs (Compose (compose_drs (second (endow i e1))) (compose_drs (second (endow i e2))) (get_modus (get_type e1)) (get_side (get_type e1)))))
-endow i (Compound t e1 e2 s) | (s == R) = ((Compound t e1 e2 R), (compose_drs (Compose (compose_drs (second (endow i e1))) (compose_drs (second (endow i e2))) (get_modus (get_type e2)) (get_side (get_type e1)))))
+endow i (Compound t e1 e2 s) | (s == R) = ((Compound t e1 e2 R), (compose_drs (Compose (compose_drs (second (endow i e1))) (compose_drs (second (endow i e2))) (get_modus (get_type e2)) (get_side (get_type e2)))))
 
 
 --Write rules and facts
