@@ -166,7 +166,7 @@ rename bindings facts = map (\f -> rename_fact bindings f) facts
 get_fresh_symbol :: [Symbol] -> Symbol
 get_fresh_symbol xs = (Constant ("f" ++ show ((length xs) + 3)))
 
-composition_facts :: Symbol -> Symbol -> Symbol -> Modus -> [Fact]
+composition_facts :: Symbol -> Symbol -> Symbol -> Modus -> Direction -> [Fact]
 composition_facts f1 f2 f3 Comp L = [drs_declaration_fact, composition_declaration, complementation_declaration]
     where
         composition_declaration = (Assertion (Predicate (Constant "compose") [f1, f2, f3]))
@@ -233,7 +233,7 @@ write_variables (s:ss) = write_symbol s ++ ", " ++ write_variables ss
 
 write_drs :: DRS -> String
 write_drs (Constraints v f s) = "%% Variables: " ++ write_variables (s:v) ++ "\n %% Constraints: \n" ++ write_facts f ++ "\n"
-write_drs (Compose d1 d2 m) = error "Cannot write unevaluated DRS composition."
+write_drs (Compose d1 d2 m s) = error "Cannot write unevaluated DRS composition."
 
 write_semexp :: SemanticExpression -> String
 write_semexp (e, s) = show_expression e ++ ", " ++ write_drs s
