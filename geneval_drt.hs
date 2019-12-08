@@ -23,7 +23,7 @@ data Rule = Head Atom [Atom]
 data Fact = Assertion Atom
     deriving (Eq, Show, Ord)
 
-data DRS = Dummy | Constraints [Symbol] [Fact] | Compose DRS DRS
+data DRS = Dummy | Constraints [Symbol] [Fact] Symbol | Compose DRS DRS
     deriving (Eq, Show, Ord)
 
 type SemanticExpression = (Expression, DRS)
@@ -123,18 +123,22 @@ enumerate n (x:xs) = ((x, n + (length (x:xs))) : (enumerate n xs))
 --Given a Semantic Expression, associate all variables in the DRS it contains to a new unique name,
 --and return a list of tuples of the form (variable_name, new_variable_name).
 get_bindings :: Int -> DRS -> [(Symbol, Symbol)]
-get_bindings n (Constraints v f) = map (\x -> (first x, (Constant ("c" ++ show (second x))))) (enumerate n (distinct v))
+get_bindings n (Constraints v f s) = map (\x -> (first x, (Constant ("c" ++ show (second x))))) (enumerate n (distinct (s:v)))
 get_bindings n (Compose d1 d2) = (get_bindings n d1) ++ (get_bindings (n + m) d2) where m = length (get_bindings n d1)
 
 --Get the variable symbols in a non-composite DRS
 get_variables :: DRS -> [Symbol]
-get_variables (Constraints v f) = v
+get_variables (Constraints v f s) = v
 get_variables _ = error "Cannot get variables from DRS composition or dummy DRS."
 
 --Get the facts in a non-composite DRS list of constraints
 get_constraints :: DRS -> [Fact]
-get_constraints (Constraints v f) = f
+get_constraints (Constraints v f s) = f
 get_constraints _ = error "Cannot get constraints from DRS composition or dummy DRS."
+
+get_drs_variable :: DRS -> Symbol
+get_drs_variable (Constraints v f s) = s
+get_drs_variable _ = error "Cannot get DRS variable from a dummy DRS or composition DRS"
 
 --Map a symbol to another symbol
 map_symbol :: Symbol -> [(Symbol, Symbol)] -> Symbol
@@ -152,15 +156,27 @@ rename_fact bindings (Assertion (Predicate predicate arguments)) = (Assertion (P
 rename :: [(Symbol, Symbol)] -> [Fact] -> [Fact]
 rename bindings facts = map (\f -> rename_fact bindings f) facts
 
+get_fresh_symbol :: [Symbol] -> Symbol
+get_fresh_symbol xs = (Constant ("f" ++ show ((length xs) + 3)))
+
+composition_facts :: Symbol -> Symbol -> Symbol -> [Fact]
+composition_facts f1 f2 f3 = [drs_declaration_fact, composition_declaration]
+    where
+        composition_declaration = (Assertion (Predicate (Constant "compose") [f1, f2, f3]))
+        drs_declaration_fact = (Assertion (Predicate (Constant "drs") [f3]))
+
 --Compose a DRS
 compose_drs :: DRS -> DRS
-compose_drs (Constraints v f) = (Constraints v f)
-compose_drs (Compose d1 d2) = Constraints (map (\x -> second x) (b1 ++ b2)) ((rename b1 c1) ++ (rename b2 c2))
+compose_drs (Constraints v f s) = (Constraints v f s)
+compose_drs (Compose d1 d2) = (Constraints (map (\x -> second x) (b1 ++ b2)) ((rename b1 c1) ++ (rename b2 c2) ++ (composition_facts (map_symbol f1 b1) (map_symbol f2 b2) f3)) f3)
     where
         b1 = get_bindings 0 (compose_drs d1)
         b2 = get_bindings (length b1) (compose_drs d2)
         c1 = get_constraints (compose_drs d1)
         c2 = get_constraints (compose_drs d2)
+        f1 = get_drs_variable d1
+        f2 = get_drs_variable d2
+        f3 = get_fresh_symbol ((get_variables d1) ++ (get_variables d2))
 
 --Map an expression to a semantic expression
 endow :: Interpretation -> Expression -> SemanticExpression
@@ -191,7 +207,7 @@ write_variables (s:[]) = write_symbol s
 write_variables (s:ss) = write_symbol s ++ ", " ++ write_variables ss
 
 write_drs :: DRS -> String
-write_drs (Constraints v f) = "%% Variables: " ++ write_variables v ++ "\n %% Constraints: \n" ++ write_facts f ++ "\n"
+write_drs (Constraints v f s) = "%% Variables: " ++ write_variables (s:v) ++ "\n %% Constraints: \n" ++ write_facts f ++ "\n"
 write_drs (Compose d1 d2) = error "Cannot write unevaluated DRS composition."
 
 write_semexp :: SemanticExpression -> String
@@ -207,10 +223,10 @@ binary_int_type = (Functor (Atomic "N") R int_on_int_type)
 
 noun = (Atomic "n")
 sentence = (Atomic "s")
-adjective = (Functor noun L noun)
-intransitive = (Functor noun L sentence)
-transitive = (Functor noun R intransitive)
-relative = (Functor intransitive L adjective)
+adjective = (Functor noun R noun)
+intransitive = (Functor noun R sentence)
+transitive = (Functor noun L intransitive)
+relative = (Functor intransitive R adjective)
 
 man = (Simple noun "man")
 saw = (Simple transitive "saw")
@@ -228,11 +244,11 @@ read_fact xs = (Assertion (Predicate (Constant (head xs)) (map (\x -> (Constant 
 read_facts :: [[String]] -> [Fact]
 read_facts xs = map (\x -> read_fact x) xs
 
-man_facts = [["true", "man", "v1"]]
-man_semantics = (Constraints (read_symbols ["v1"]) (read_facts man_facts))
+man_facts = [["true", "man", "v1"], ["drs", "dman"], ["head", "dman", "v1"]]
+man_semantics = (Constraints (read_symbols ["v1"]) (read_facts man_facts) (Constant "dman"))
 
-saw_facts = [["true", "seer", "e1", "v1"], ["true", "seen", "e1", "v2"], ["true", "sight", "e1"], ["require", "visual", "v2"], ["require", "can_see", "v1"]]
-saw_semantics = (Constraints (read_symbols ["v1", "v2", "e1"]) (read_facts saw_facts))
+saw_facts = [["true", "seer", "e1", "v1"], ["true", "seen", "e1", "v2"], ["true", "sight", "e1"], ["require", "visual", "v2"], ["require", "can_see", "v1"], ["drs", "dsaw"], ["head", "dsaw", "e1"]]
+saw_semantics = (Constraints (read_symbols ["v1", "v2", "e1"]) (read_facts saw_facts) (Constant "dsaw"))
 
 
 
