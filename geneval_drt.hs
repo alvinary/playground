@@ -166,6 +166,9 @@ rename bindings facts = map (\f -> rename_fact bindings f) facts
 get_fresh_symbol :: [Symbol] -> Symbol
 get_fresh_symbol xs = (Constant ("f" ++ show ((length xs) + 3)))
 
+
+--Must refactor this so that
+--composition facts = [drs_declaration, composition_declaration, suitable_declaration(f1, f2, f3, modus, side)]
 composition_facts :: Symbol -> Symbol -> Symbol -> Modus -> Direction -> [Fact]
 composition_facts f1 f2 f3 Comp L = [drs_declaration_fact, composition_declaration, complementation_declaration]
     where
