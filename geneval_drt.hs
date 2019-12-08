@@ -235,11 +235,14 @@ write_variables (s:[]) = write_symbol s
 write_variables (s:ss) = write_symbol s ++ ", " ++ write_variables ss
 
 write_drs :: DRS -> String
-write_drs (Constraints v f s) = "%% Variables: " ++ write_variables (s:v) ++ "\n %% Constraints: \n" ++ write_facts f ++ "\n"
+write_drs (Constraints v f s) = "%% Variables: " ++ write_variables (s:v) ++ "\n%%Constraints: \n" ++ write_facts f ++ "\n"
 write_drs (Compose d1 d2 m s) = error "Cannot write unevaluated DRS composition."
 
 write_semexp :: SemanticExpression -> String
 write_semexp (e, s) = show_expression e ++ ", " ++ write_drs s
+
+write_example :: SemanticExpression -> String
+write_example (e, s) = "<example> \n\n" ++ "%% Axioms: \n" ++ axioms ++ "%% " ++ show_expression e ++ "\n" ++ write_drs s ++ "</example> \n\n"
 
 --Example
 
@@ -259,6 +262,7 @@ relative = (Functor intransitive R Comp adjective)
 man = (Simple noun "man")
 saw = (Simple transitive "saw")
 large = (Simple adjective "large")
+tall = (Simple adjective "tall")
 walked = (Simple intransitive "walked")
 that = (Simple relative "that")
 
@@ -274,6 +278,9 @@ read_facts xs = map (\x -> read_fact x) xs
 
 man_facts = [["true", "man", "v1"], ["drs", "dman"], ["head", "dman", "v1"]]
 man_semantics = (Constraints (read_symbols ["v1"]) (read_facts man_facts) (Constant "dman"))
+
+tall_facts = [["true", "tall", "p1"], ["drs", "dtall", ""], ["head", "dtall", "p1"], ["require", "personal", "c1"], ["true", "tallee", "c1"]]
+tall_semantics = (Constraints (read_symbols ["p1", "c1"]) (read_facts saw_facts) (Constant "dtall")) 
 
 saw_facts = [["true", "seer", "e1", "v1"], ["true", "seen", "e1", "v2"], ["true", "sight", "e1"], ["require", "visual", "v2"], ["require", "can_see", "v1"], ["drs", "dsaw"], ["head", "dsaw", "e1"]]
 saw_semantics = (Constraints (read_symbols ["v1", "v2", "e1"]) (read_facts saw_facts) (Constant "dsaw"))
@@ -313,7 +320,7 @@ ropa = map (\x -> endow lexicon_interpretation x) rocha
 
 arropados = map (\x -> (first x, compose_drs (second x))) ropa
 
-arrorros = map (\x -> write_semexp x) arropados
+arrorros = map (\x -> write_example x) arropados
 
 main = do 
         forM_ arrorros putStr
