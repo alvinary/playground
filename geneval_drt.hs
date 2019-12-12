@@ -276,14 +276,26 @@ read_fact xs = (Assertion (Predicate (Constant (head xs)) (map (\x -> (Constant 
 read_facts :: [[String]] -> [Fact]
 read_facts xs = map (\x -> read_fact x) xs
 
+the_facts = []
+the_semantics = []
+
 man_facts = [["true", "man", "v1"], ["drs", "dman"], ["head", "dman", "v1"]]
 man_semantics = (Constraints (read_symbols ["v1"]) (read_facts man_facts) (Constant "dman"))
+
+woman_facts = [["true", "woman", "v1"], ["drs", "dwoman"], ["head", "dwoman", "v1"]]
+woman_semantics = (Constraints (read_symbols ["v1"]) (read_facts woman_facts) (Constant "dwoman"))
 
 tall_facts = [["true", "tall", "p1"], ["drs", "dtall", ""], ["head", "dtall", "p1"], ["require", "personal", "c1"], ["true", "tallee", "c1"]]
 tall_semantics = (Constraints (read_symbols ["p1", "c1"]) (read_facts saw_facts) (Constant "dtall")) 
 
+building_facts = [["true", "building", "v1"], ["drs", "dbuilding"], ["head", "dbuilding", "v1"], ["true", "place", "v1"]]
+building_semantics = (Constraints (read_symbols ["v1"]) (read_facts woman_facts) (Constant "dbuilding"))
+
 saw_facts = [["true", "seer", "e1", "v1"], ["true", "seen", "e1", "v2"], ["true", "sight", "e1"], ["require", "visual", "v2"], ["require", "can_see", "v1"], ["drs", "dsaw"], ["head", "dsaw", "e1"]]
 saw_semantics = (Constraints (read_symbols ["v1", "v2", "e1"]) (read_facts saw_facts) (Constant "dsaw"))
+
+that_facts = [["true", "seer", "e1", "v1"], ["true", "seen", "e1", "v2"], ["true", "sight", "e1"], ["require", "visual", "v2"], ["require", "can_see", "v1"], ["drs", "dsaw"], ["head", "dsaw", "e1"]]
+that_semantics = (Constraints (read_symbols ["t1", "e1", "v1"]) (read_facts saw_facts) (Constant "dthat"))
 
 -- Axioms for DRS behavior
 axioms = concat 
@@ -301,6 +313,17 @@ axioms = concat
         , ":- false(P, A), true(P, A). \n"
         , "unify(C1, C2) :- compose(D, E, F), head(D, C1), head(F, C2), complement(D, E). \n"
         , "unify(C1, C2) :- compose(D, E, F), head(E, C1), head(F, C2), adjunct(D, E). \n" ]
+
+background_knowledge = concat
+                      [ "true(can_see, X) :- true(personal, X). \n"
+                      , "true(visual, X) :- true(material, X). \n"
+                      , "true(visual, X) :- true(place, X). \n"
+                      , "true(material, X) :- true(personal, X). \n"
+                      , "true(personal, X) :- true(man, X). \n"
+                      , "true(personal, X) :- true(woman, X). \n"
+                      , "true(visual, X) :- true(material, X). \n"
+                      , "true(visual, X) :- true(material, X). \n"
+                      , "true(visual, X) :- true(material, X). \n"
 
 lexicon = [man, saw]
 lexicon_interpretation = [(man, man_semantics), (saw, saw_semantics)]
