@@ -317,13 +317,10 @@ axioms = concat
 background_knowledge = concat
                       [ "true(can_see, X) :- true(personal, X). \n"
                       , "true(visual, X) :- true(material, X). \n"
-                      , "true(visual, X) :- true(place, X). \n"
+                      , "true(material, X) :- true(place, X). \n"
                       , "true(material, X) :- true(personal, X). \n"
                       , "true(personal, X) :- true(man, X). \n"
-                      , "true(personal, X) :- true(woman, X). \n"
-                      , "true(visual, X) :- true(material, X). \n"
-                      , "true(visual, X) :- true(material, X). \n"
-                      , "true(visual, X) :- true(material, X). \n"
+                      , "true(personal, X) :- true(woman, X). \n"]
 
 lexicon = [man, saw]
 lexicon_interpretation = [(man, man_semantics), (saw, saw_semantics)]
