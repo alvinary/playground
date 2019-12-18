@@ -270,7 +270,7 @@ write_semexp :: SemanticExpression -> String
 write_semexp (e, s) = show_expression e ++ ", " ++ write_drs s
 
 write_example :: SemanticExpression -> String
-write_example (e, s) = "<example> \n\n" ++ "%% Axioms: \n" ++ axioms ++ "%% " ++ show_expression e ++ "\n" ++ write_drs s ++ "</example> \n\n"
+write_example (e, s) = "<example> \n\n" ++ "%% Axioms and WK: \n" ++ axioms ++ background_knowledge ++ "%% " ++ show_expression e ++ "\n" ++ write_drs s ++ "</example> \n\n"
 
 --Example
 
