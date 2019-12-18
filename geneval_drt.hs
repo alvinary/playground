@@ -399,7 +399,7 @@ axioms = concat
         , "false(P, B) :- false(P, A), unify(A, B). \n"
         , ":- require(P, A), not true(P, A). \n"
         , ":- reject(P, A), true(P, A). \n"
-        , ":- require(P, A, B), not true(P, A, B) \n"
+        , ":- require(P, A, B), not true(P, A, B). \n"
         , ":- reject(P, A, B), true(P, A, B). \n"
         , ":- false(P, A, B), true(P, A, B). \n"
         , ":- false(P, A), true(P, A). \n"
