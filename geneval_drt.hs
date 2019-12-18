@@ -26,7 +26,7 @@ data Rule = Head Atom [Atom]
 data Fact = Assertion Atom
     deriving (Eq, Show, Ord)
 
-data DRS = Dummy | Constraints [Symbol] [Fact] Symbol | Compose DRS DRS Modus Direction
+data DRS = Dummy | Constraints [Symbol] [Fact] Symbol [(Symbol, Symbol)] Symbol | Compose DRS DRS Modus Direction
     deriving (Eq, Show, Ord)
 
 type SemanticExpression = (Expression, DRS)
@@ -130,22 +130,30 @@ enumerate n (x:xs) = ((x, n + (length (x:xs))) : (enumerate n xs))
 --Given a Semantic Expression, associate all variables in the DRS it contains to a new unique name,
 --and return a list of tuples of the form (variable_name, new_variable_name).
 get_bindings :: Int -> DRS -> [(Symbol, Symbol)]
-get_bindings n (Constraints v f s) = map (\x -> (first x, (Constant ("c" ++ show (second x))))) (enumerate n (distinct (s:v)))
+get_bindings n (Constraints v f s a h) = map (\x -> (first x, (Constant ("c" ++ show (second x))))) (enumerate n (distinct (s:v)))
 get_bindings n (Compose d1 d2 mod dir) = (get_bindings n d1) ++ (get_bindings (n + m) d2) where m = length (get_bindings n d1)
 
 --Get the variable symbols in a non-composite DRS
 get_variables :: DRS -> [Symbol]
-get_variables (Constraints v f s) = v
+get_variables (Constraints v f s a h) = v
 get_variables _ = error "Cannot get variables from DRS composition or dummy DRS."
 
 --Get the facts in a non-composite DRS list of constraints
 get_constraints :: DRS -> [Fact]
-get_constraints (Constraints v f s) = f
+get_constraints (Constraints v f s a h) = f
 get_constraints _ = error "Cannot get constraints from DRS composition or dummy DRS."
 
 get_drs_variable :: DRS -> Symbol
-get_drs_variable (Constraints v f s) = s
-get_drs_variable _ = error "Cannot get DRS variable from a dummy DRS or composition DRS"
+get_drs_variable (Constraints v f s a h) = s
+get_drs_variable _ = error "Cannot get DRS variable from a dummy DRS or composition DRS."
+
+get_drs_arguments :: DRS -> [(Symbol, Symbol)]
+get_drs_arguments (Constraints v f s a h) = a
+get_drs_arguments _ = error "Cannot get arguments from dummy DRS or composition DRS."
+
+get_head :: DRS -> Symbol
+get_head (Constraints v f s a h) = h
+get_head _ = error "Cannot get head from dummy DRS or composition DRS."
 
 --Map a symbol to another symbol
 map_symbol :: Symbol -> [(Symbol, Symbol)] -> Symbol
@@ -162,6 +170,23 @@ rename_fact bindings (Assertion (Predicate predicate arguments)) = (Assertion (P
 --Rename all symbols present in a list of facts to their bound names
 rename :: [(Symbol, Symbol)] -> [Fact] -> [Fact]
 rename bindings facts = map (\f -> rename_fact bindings f) facts
+
+--Rename all symbols in a list of symbol pairs to their bound names
+rename_arguments :: [(Symbol, Symbol)] -> [(Symbol, Symbol)] -> [(Symbol, Symbol)]
+rename_arguments bindings arguments = map (\x -> (first x, map_symbol (second x) bindings)) arguments
+
+--Given a list of bindings, a list of arguments, and the name of a head...
+--Remember to have bindings for both branches
+argument_facts :: [(Symbol, Symbol)] -> [(Symbol, Symbol)] -> Symbol -> [Fact]
+argument_facts b a h = rename b [unification_declaration]
+    where
+        unification_declaration = (Assertion (Predicate (Constant "unify") [(second current_argument), h]))
+        current_argument = head a
+
+new_head :: DRS -> DRS -> Modus -> Symbol
+new_head d1 d2 Comp = get_head d1
+new_head d1 d2 Adj = get_head d2
+new_head _ _ Neuter = error "Heads for the composition of DRS can only be formed from neuter modus."
 
 get_fresh_symbol :: [Symbol] -> Symbol
 get_fresh_symbol xs = (Constant ("f" ++ show ((length xs) + 3)))
@@ -193,8 +218,8 @@ composition_facts f1 f2 f3 Adj R = [drs_declaration_fact, composition_declaratio
 
 --Compose a DRS
 compose_drs :: DRS -> DRS
-compose_drs (Constraints v f s) = (Constraints v f s)
-compose_drs (Compose d1 d2 m s) = (Constraints (map (\x -> second x) (b1 ++ b2)) ((rename b1 c1) ++ (rename b2 c2) ++ (composition_facts (map_symbol f1 b1) (map_symbol f2 b2) f3 m s)) f3)
+compose_drs (Constraints v f s a h) = (Constraints v f s a h)
+compose_drs (Compose d1 d2 m s) = (Constraints (map (\x -> second x) (b1 ++ b2)) ((rename b1 c1) ++ (rename b2 c2) ++ (composition_facts (map_symbol f1 b1) (map_symbol f2 b2) f3 m s)) f3 (tail (rename_arguments b1 as)) nh)
     where
         b1 = get_bindings 0 (compose_drs d1)
         b2 = get_bindings (length b1) (compose_drs d2)
@@ -203,6 +228,9 @@ compose_drs (Compose d1 d2 m s) = (Constraints (map (\x -> second x) (b1 ++ b2))
         f1 = get_drs_variable d1
         f2 = get_drs_variable d2
         f3 = get_fresh_symbol ((get_variables d1) ++ (get_variables d2))
+        as = get_drs_arguments d1
+        af = argument_facts (b1 ++ b2) as (get_head d2)
+        nh = map_symbol (new_head d1 d2 m) (b1 ++ b2)
 
 --Map an expression to a semantic expression
 endow :: Interpretation -> Expression -> SemanticExpression
@@ -235,7 +263,7 @@ write_variables (s:[]) = write_symbol s
 write_variables (s:ss) = write_symbol s ++ ", " ++ write_variables ss
 
 write_drs :: DRS -> String
-write_drs (Constraints v f s) = "%% Variables: " ++ write_variables (s:v) ++ "\n%%Constraints: \n" ++ write_facts f ++ "\n"
+write_drs (Constraints v f s a h) = "%% Variables: " ++ write_variables (s:v) ++ "\n%%Constraints: \n" ++ write_facts f ++ "\n"
 write_drs (Compose d1 d2 m s) = error "Cannot write unevaluated DRS composition."
 
 write_semexp :: SemanticExpression -> String
@@ -260,11 +288,14 @@ transitive = (Functor noun L Comp intransitive)
 relative = (Functor intransitive R Comp adjective)
 
 man = (Simple noun "man")
+building = (Simple noun "building")
+woman = (Simple noun "woman")
 saw = (Simple transitive "saw")
 large = (Simple adjective "large")
 tall = (Simple adjective "tall")
 walked = (Simple intransitive "walked")
 that = (Simple relative "that")
+the = (Simple adjective "the")
 
 read_symbols :: [String] -> [Symbol]
 read_symbols ss = map (\x -> (Constant x)) ss
@@ -279,25 +310,86 @@ read_facts xs = map (\x -> read_fact x) xs
 the_facts = []
 the_semantics = []
 
-man_facts = [["true", "man", "v1"], ["drs", "dman"], ["head", "dman", "v1"]]
-man_semantics = (Constraints (read_symbols ["v1"]) (read_facts man_facts) (Constant "dman"))
+read_drs :: ([String], [[String]], String, [(String, String)], String) -> DRS
+read_drs (constants, facts, drs_symbol, arguments, head) = (Constraints rc rf rd ra rh)
+    where
+        rc = read_symbols constants
+        rf = read_facts facts
+        rd = (Constant drs_symbol)
+        ra = map (\x -> ((Constant (first x)), (Constant (second x)))) arguments
+        rh = (Constant head)
 
-woman_facts = [["true", "woman", "v1"], ["drs", "dwoman"], ["head", "dwoman", "v1"]]
-woman_semantics = (Constraints (read_symbols ["v1"]) (read_facts woman_facts) (Constant "dwoman"))
+man_drs = read_drs ( ["v1"]
+               , [ ["true", "man", "v1"]
+                 , ["head", "dman", "v1"]
+                 , ["drs", "dman"]]
+               , "dman"
+               , []
+               , "v1" )
 
-tall_facts = [["true", "tall", "p1"], ["drs", "dtall", ""], ["head", "dtall", "p1"], ["require", "personal", "c1"], ["true", "tallee", "c1"]]
-tall_semantics = (Constraints (read_symbols ["p1", "c1"]) (read_facts saw_facts) (Constant "dtall")) 
+woman_drs = read_drs ( ["v1"]
+               , [ ["true", "woman", "v1"]
+                 , ["head", "dwoman", "v1"]
+                 , ["drs", "dwoman"]]
+               , "dwoman"
+               , []
+               , "v1" )
 
-building_facts = [["true", "building", "v1"], ["drs", "dbuilding"], ["head", "dbuilding", "v1"], ["true", "place", "v1"]]
-building_semantics = (Constraints (read_symbols ["v1"]) (read_facts woman_facts) (Constant "dbuilding"))
+building_drs = read_drs ( ["v1"]
+               , [ ["true", "building", "v1"]
+                 , ["head", "dbuilding", "v1"]
+                 , ["drs", "dbuilding"]]
+               , "dbuilding"
+               , []
+               , "v1" )
 
-saw_facts = [["true", "seer", "e1", "v1"], ["true", "seen", "e1", "v2"], ["true", "sight", "e1"], ["require", "visual", "v2"], ["require", "can_see", "v1"], ["drs", "dsaw"], ["head", "dsaw", "e1"]]
-saw_semantics = (Constraints (read_symbols ["v1", "v2", "e1"]) (read_facts saw_facts) (Constant "dsaw"))
+tall_drs = read_drs ( ["v1", "p1"]
+               , [ ["true", "tallness", "p1"]
+                 , ["head", "dtall", "p1"]
+                 , ["true", "tall", "v1"]
+                 , ["require", "personal", "v1"]]
+               , "dtall"
+               , [("tall", "v1")]
+               , "p1" )
 
-that_facts = [["true", "seer", "e1", "v1"], ["true", "seen", "e1", "v2"], ["true", "sight", "e1"], ["require", "visual", "v2"], ["require", "can_see", "v1"], ["drs", "dsaw"], ["head", "dsaw", "e1"]]
-that_semantics = (Constraints (read_symbols ["t1", "e1", "v1"]) (read_facts saw_facts) (Constant "dthat"))
+saw_drs = read_drs ( ["v1", "v2", "e1"]
+               , [ ["true", "sight", "e1"]
+                 , ["head", "dsee", "e1"]
+                 , ["true", "seen", "v1"]
+                 , ["true", "seer", "v2"]
+                 , ["require", "visible", "v1"]
+                 , ["require", "can_see", "v2"]]
+               , "dsee"
+               , [("seen", "v1"), ("seer", "v2")]
+               , "e1" )
+
+that_drs = read_drs ( ["v1"]
+               , [ []
+                 , []
+                 , []]
+               , ""
+               , [("", "")]
+               , "" )
+
+the_drs = read_drs ( ["v1", "p1"]
+               , [ ["true", "determinate", "v1"]
+                 , ["true", "definite", "p1"]
+                 , ["head", "dthe", "p1"]
+                 , ["drs", "dthe"]
+                 , ["reject_backwards", "determinate", "v1"]]
+               , "dthe"
+               , [("determinate", "v1")]
+               , "p1" )
 
 -- Axioms for DRS behavior
+
+-- One solution is to make unification an order relation instead of an equivalence relation,
+-- so that you can reject a property of a complement, but have the result of the composition
+-- attributed the rejected property anyway (as in the case of determiners, colors, and the like).
+
+-- Another solution is to add more relations and axioms
+-- Unify, unify_forward, reject, reject_backwards, reject_forward
+
 axioms = concat 
         [ "unify(A, B) :- unify(B, A). \n"
         , "unify(A, C) :- unify(A, B), unify(B, C). \n"
@@ -316,14 +408,22 @@ axioms = concat
 
 background_knowledge = concat
                       [ "true(can_see, X) :- true(personal, X). \n"
-                      , "true(visual, X) :- true(material, X). \n"
+                      , "true(visible, X) :- true(material, X). \n"
                       , "true(material, X) :- true(place, X). \n"
                       , "true(material, X) :- true(personal, X). \n"
                       , "true(personal, X) :- true(man, X). \n"
-                      , "true(personal, X) :- true(woman, X). \n"]
+                      , "true(personal, X) :- true(woman, X). \n"
+                      , "true(can_see, X) :- true(personal, X). \n"
+                      , "true(place, X) :- true(buidling, X). \n"]
 
-lexicon = [man, saw]
-lexicon_interpretation = [(man, man_semantics), (saw, saw_semantics)]
+lexicon = [man, woman, building, the, tall, saw]
+lexicon_interpretation = [ (man, man_drs)
+                         , (woman, woman_drs)
+                         , (saw, saw_drs)
+                         , (building, building_drs)
+                         , (the, the_drs)
+                         , (saw, saw_drs)
+                         , (tall, tall_drs)]
 
 
 zero_lex = (Simple int_type "O")
