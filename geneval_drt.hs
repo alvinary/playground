@@ -184,6 +184,7 @@ argument_facts b1 b2 (a:as) h = [unification_declaration]
         current_argument = (second a)
 argument_facts b1 b2 [] h = [] -- This might be dangerous (lead to silent errors. Maybe this case should be managed differently)
 
+--Decide which of the two constituents' heads should be the new head
 new_head :: Symbol -> Symbol -> Modus -> Symbol
 new_head h1 h2 Comp = h1
 new_head h1 h2 Adj = h2
@@ -290,7 +291,7 @@ binary_int_type = (Functor (Atomic "N") R Comp int_on_int_type)
 
 noun = (Atomic "n")
 sentence = (Atomic "s")
-adjective = (Functor noun R Adj noun)
+adjective = (Functor noun L Adj noun)
 intransitive = (Functor noun R Comp sentence)
 transitive = (Functor noun L Comp intransitive)
 relative = (Functor intransitive R Comp adjective)
