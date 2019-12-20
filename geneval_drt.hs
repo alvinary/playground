@@ -177,16 +177,17 @@ rename_arguments bindings arguments = map (\x -> (first x, map_symbol (second x)
 
 --Given a list of bindings, a list of arguments, and the name of a head...
 --Remember to have bindings for both branches
-argument_facts :: [(Symbol, Symbol)] -> [(Symbol, Symbol)] -> Symbol -> [Fact]
-argument_facts b a h = rename b [unification_declaration]
+argument_facts :: [(Symbol, Symbol)] -> [(Symbol, Symbol)] -> [(Symbol, Symbol)] -> Symbol -> [Fact]
+argument_facts b1 b2 (a:as) h = [unification_declaration]
     where
-        unification_declaration = (Assertion (Predicate (Constant "unify") [(second current_argument), h]))
-        current_argument = head a
+        unification_declaration = (Assertion (Predicate (Constant "unify") [(map_symbol current_argument b1), (map_symbol h b2)]))
+        current_argument = (second a)
+argument_facts b1 b2 [] h = [] -- This might be dangerous (lead to silent errors. Maybe this case should be managed differently)
 
-new_head :: DRS -> DRS -> Modus -> Symbol
-new_head d1 d2 Comp = get_head d1
-new_head d1 d2 Adj = get_head d2
-new_head _ _ Neuter = error "Heads for the composition of DRS can only be formed from neuter modus."
+new_head :: Symbol -> Symbol -> Modus -> Symbol
+new_head h1 h2 Comp = h1
+new_head h1 h2 Adj = h2
+new_head _ _ Neuter = error "Heads for the composition of DRS canot be formed from neuter modus."
 
 get_fresh_symbol :: [Symbol] -> Symbol
 get_fresh_symbol xs = (Constant ("f" ++ show ((length xs) + 3)))
@@ -216,11 +217,19 @@ composition_facts f1 f2 f3 Adj R = [drs_declaration_fact, composition_declaratio
         drs_declaration_fact = (Assertion (Predicate (Constant "drs") [f3]))
         adjunction_declaration = (Assertion (Predicate (Constant "adjunct") [f2, f1]))
 
+custom_tail :: [a] -> [a]
+custom_tail [] = []
+custom_tail (x:xs) = xs
+
 --Compose a DRS
 compose_drs :: DRS -> DRS
 compose_drs (Constraints v f s a h) = (Constraints v f s a h)
-compose_drs (Compose d1 d2 m s) = (Constraints (map (\x -> second x) (b1 ++ b2)) ((rename b1 c1) ++ (rename b2 c2) ++ (composition_facts (map_symbol f1 b1) (map_symbol f2 b2) f3 m s)) f3 (tail (rename_arguments b1 as)) nh)
+compose_drs (Compose d1 d2 m s) = (Constraints nvars nfacts f3 nargs nhead)
     where
+        nvars = (map (\x -> second x) (b1 ++ b2))
+        nfacts = (af ++ (rename b1 c1) ++ (rename b2 c2) ++ (composition_facts (map_symbol f1 b1) (map_symbol f2 b2) f3 m s))
+        nargs = (custom_tail (rename_arguments b1 as))
+        nhead = new_head (map_symbol (get_head d1) b1) (map_symbol (get_head d2) b2) m
         b1 = get_bindings 0 (compose_drs d1)
         b2 = get_bindings (length b1) (compose_drs d2)
         c1 = get_constraints (compose_drs d1)
@@ -229,8 +238,7 @@ compose_drs (Compose d1 d2 m s) = (Constraints (map (\x -> second x) (b1 ++ b2))
         f2 = get_drs_variable d2
         f3 = get_fresh_symbol ((get_variables d1) ++ (get_variables d2))
         as = get_drs_arguments d1
-        af = argument_facts (b1 ++ b2) as (get_head d2)
-        nh = map_symbol (new_head d1 d2 m) (b1 ++ b2)
+        af = argument_facts b1 b2 as (get_head d2)
 
 --Map an expression to a semantic expression
 endow :: Interpretation -> Expression -> SemanticExpression
@@ -311,13 +319,13 @@ the_facts = []
 the_semantics = []
 
 read_drs :: ([String], [[String]], String, [(String, String)], String) -> DRS
-read_drs (constants, facts, drs_symbol, arguments, head) = (Constraints rc rf rd ra rh)
+read_drs (constants, facts, drs_symbol, arguments, drs_head) = (Constraints rc rf rd ra rh)
     where
         rc = read_symbols constants
         rf = read_facts facts
         rd = (Constant drs_symbol)
         ra = map (\x -> ((Constant (first x)), (Constant (second x)))) arguments
-        rh = (Constant head)
+        rh = (Constant drs_head)
 
 man_drs = read_drs ( ["v1"]
                , [ ["true", "man", "v1"]
@@ -389,6 +397,10 @@ the_drs = read_drs ( ["v1", "p1"]
 
 -- Another solution is to add more relations and axioms
 -- Unify, unify_forward, reject, reject_backwards, reject_forward
+
+-- Something that took a semantic argument that should be unified to the head of a syntactic argument, but only "casted"
+-- the new properties to the head of the composed drs, which should be a new symbol (an empty
+-- entity that would receive all relevant properties from the relevant heads)
 
 axioms = concat 
         [ "unify(A, B) :- unify(B, A). \n"
