@@ -5,6 +5,7 @@
 -- -- (for row in csv, row_id = new_id, for column in row, (new_id, column.element):column_name_relation_name)
 
 import Control.Monad
+import System.IO
 
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -18,7 +19,7 @@ type Relation = (Set.Set Pair)
 
 data ElementType = Re | Co | In | Pa | Op
 
-data Expression = Atom String | Sequence [Expression] | Operator String
+data Expression = Atom String | Sequence [Expression] | Operator String | SquareSequence [Expression]
     deriving (Eq, Ord, Show)
 
 type State = Map.Map Expression Relation
@@ -69,7 +70,7 @@ relation_append pair rel = Set.insert pair rel
 count :: Relation -> Int
 count relation = Set.size relation
 
-keywords = words ") ( & | * - : = . # ? ^ > ~ < /"
+keywords = words ") ( & | * - : = . # ? ^ > ~ < / ] ["
 operators = words "& | * - : = # ^ >" -- ? .  ~ < /
 
 brittle_map :: [String] -> String -> String
@@ -224,5 +225,21 @@ test_statement_3 = "(exit)"
 test_statement_4 = "(r = (((a^)|(b^))*))"
 test_statement_5 = "(#(((a^)|b)*))"
 
-main = do
-        forM_ (map show_evaluation evaluations) putStr
+show_pair :: Pair -> String
+show_pair (a, b) = "(" ++ (show a) ++ " " ++ (show b) ++ ")" ++ "\n"
+
+read_ :: IO String
+read_ = putStr "RDB REPL> "
+    >> hFlush stdout
+    >> getLine
+
+repl_ :: State -> Expression -> IO String
+repl_ state = do  current_input <- read_
+                  let current_expression = (parse current_input)
+                  let current_evaluation = evaluate current_expression state
+                  let current_state = second (current_evaluation)            
+                  putStr (show_relation (first current_evaluation)) >> repl_ current_state
+
+main = do forM_ (map show_evaluation evaluations) putStr
+          let initial_state = (second (first (last evaluations)))
+          repl_ initial_state
