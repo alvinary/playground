@@ -4,6 +4,9 @@
 -- Todo - turn csv with tuples of arbitrary arity to binary relations
 -- -- (for row in csv, row_id = new_id, for column in row, (new_id, column.element):column_name_relation_name)
 
+-- Todo - boolean functions
+-- Todo - such X (cond X)
+
 import Control.Monad
 import System.IO
 
