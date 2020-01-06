@@ -12,11 +12,8 @@
 -- the repl should tell you "nope nope, this is not a legal expression",
 -- and prompt you to introduce a new input
 
--- Also, (exit) does not work.
-
 -- Todo - RDB should be able to read programs.
 
--- Todo - (clear) statement
 -- Todo - (dump) statement
 
 import Control.Monad
@@ -25,7 +22,7 @@ import System.IO
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 
-data Constant = Individual String | Floating Float | Integer Int | B Bool
+data Constant = Individual String | Floating Float | Integer Int | Boolean Bool
     deriving (Eq, Ord, Show)
 
 type Pair = (Constant, Constant)
@@ -229,7 +226,8 @@ succesive_evaluation (x:xs) s = (((evaluate (first x) s), (second x)):(succesive
 evaluations = succesive_evaluation (map (\x -> (parse x, x)) test_loads) global_state
 
 show_relation :: Relation -> String
-show_relation rel = (concat (map (\x -> (show x) ++ "\n \n") (Set.elems rel))) ++ "\n \n \n"
+show_relation rel | Set.null rel = "This relation is empty." ++ "\n \n"
+show_relation rel | otherwise = "\n" ++ (concat (map (\x -> (show_pair x)) (Set.elems rel))) ++ "\n \n"
 
 show_evaluation :: ((Relation, State), String) -> String
 show_evaluation ((r, s), e) = e ++ "\n" ++ (show_relation r)
@@ -241,20 +239,32 @@ test_statement_4 = "(r = (((a^)|(b^))*))"
 test_statement_5 = "(#(((a^)|b)*))"
 
 show_pair :: Pair -> String
-show_pair (a, b) = "(" ++ (show a) ++ " " ++ (show b) ++ ")" ++ "\n"
+show_pair (a, b) = "(" ++ (show_constant a) ++ " " ++ (show_constant b) ++ ")" ++ "\n"
+
+show_constant :: Constant -> String
+show_constant (Individual s) = show s
+show_constant (Floating f) = show f
+show_constant (Integer i) = show i
+show_constant (Boolean b) = show b 
 
 read_ :: IO String
 read_ = putStr "RDB REPL> "
     >> hFlush stdout
     >> getLine
 
-repl_ :: State -> Expression -> IO String
-repl_ state = do  current_input <- read_
-                  let current_expression = (parse current_input)
-                  let current_evaluation = evaluate current_expression state
-                  let current_state = second (current_evaluation)            
-                  putStr (show_relation (first current_evaluation)) >> repl_ current_state
+repl_pipeline :: State -> String -> IO String
+repl_pipeline state expr = do  current_input <- read_
+                               let current_expression = (parse current_input)
+                               let current_evaluation = evaluate current_expression state
+                               let current_state = second (current_evaluation)            
+                               putStr (show_relation (first current_evaluation)) >> repl_ current_state current_input
 
-main = do forM_ (map show_evaluation evaluations) putStr
-          let initial_state = (second (first (last evaluations)))
-          repl_ initial_state
+repl_ :: State -> String -> IO String
+repl_ state expr | expr == "(tutorial)" = do forM_ (map show_evaluation evaluations) putStr
+                                             let current_state = (second (first (last evaluations)))
+                                             repl_pipeline current_state "ok"
+                 | expr == "(exit)" = do return "Exiting RDB..."
+                 | expr == "(clear)" = do repl_pipeline Map.empty "ok"
+                 | otherwise = repl_pipeline state expr
+
+main = do repl_ Map.empty "ok"
