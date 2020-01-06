@@ -15,6 +15,10 @@
 -- Todo - RDB should be able to read programs.
 
 -- Todo - (dump) statement
+-- (dump all)
+-- (dump rel)
+
+-- Todo - what if a relation is huge? RDB should not print it in whole to the user.
 
 import Control.Monad
 import System.IO
