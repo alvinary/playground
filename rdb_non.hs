@@ -7,6 +7,18 @@
 -- Todo - boolean functions
 -- Todo - such X (cond X)
 
+-- Todo - program shouldn't crash on a parse error on the repl.
+-- parse should return maybe expression, and when nothing is returned,
+-- the repl should tell you "nope nope, this is not a legal expression",
+-- and prompt you to introduce a new input
+
+-- Also, (exit) does not work.
+
+-- Todo - RDB should be able to read programs.
+
+-- Todo - (clear) statement
+-- Todo - (dump) statement
+
 import Control.Monad
 import System.IO
 
