@@ -4,10 +4,10 @@ type Name = String
 
 type Composer = (EType -> Type)
 
+type Checker = (Type -> Bool)
+
 data Direction = L | R | E
     deriving (Eq, Show, Ord)
-
-type Checker = (Type -> Bool)
 
 data Type = Empty
           | Atomic Name
@@ -138,6 +138,8 @@ make_composition_type :: Type -> Type -> Type
 make_composition_type (Relation (Pair t1 t2)) (Relation (Pair t2 t3)) = (Relation (Pair t1 t3))
 make_composition_type (Relation (Pair t1 t2)) (Relation (Pair t2 t3)) = (Relation (Pair t1 t3))
 
+-- How should the inversion of union types be managed?
+
 -- I think there's a problem here with pattern matching. What happens if t in the second equation is a uniontype?
 -- Maybe that equation will be evaluated after the first equation. But if it doesn't, elem t ts
 -- is a type error.
@@ -187,10 +189,10 @@ fourteen_lex = (Simple int_type "L")
 
 closure_lex = (Simple int_on_int_type "*") -- Preserves type
 inversion_lex = (Simple int_on_int_type "^") -- Should invert tuple types
-diff_lex = (Simple binary_int_type "-") -- both relations should have the same type
+diff_lex = (Simple binary_int_type "-") -- both relations should have the same type (or the type of the second argument should be included in the first)
 uni_lex = (Simple binary_int_type "|") -- does this create union types? Does that make sense? Nop nop
-inter_lex = (Simple binary_int_type "&") -- this one absolutely requires its inputs to belong to the same type
-comp_lex = (Simple binary_int_type ">") -- (A, B) -> (B, C) -> (A, C)
+inter_lex = (Simple binary_int_type "&") -- this one absolutely requires its inputs to belong to the same type - no, wait, it works like relation difference
+comp_lex = (Simple binary_int_type ">") -- (A, B) -> (B, C) -> (A, C). But what if we have union types?
 
 -- Should I generalize operations?
 -- Each operation would have a type checker (T -> bool), or (T -> T -> bool), an application function (its semantics),
