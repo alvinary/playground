@@ -2,7 +2,7 @@ import Control.Monad
 
 type Name = String
 
-type Composer = (EType -> Type)
+type Composer = (Type -> Type)
 
 type Checker = (Type -> Bool)
 
@@ -60,12 +60,12 @@ get_side (Functor t1 d c co t2) = d
 get_side _ = error "Only functor types have directions."
 
 --Get the input checker function of a functor type
-get_side (Functor t1 d c co t2) = c
-get_side _ = error "Only functor types have input checkers."
+get_checker (Functor t1 d c co t2) = c
+get_checker _ = error "Only functor types have input checkers."
 
 --Get the type composer of a functor type
-get_side (Functor t1 d c co t2) = co
-get_side _ = error "Only functor types have type composers"
+get_composer (Functor t1 d c co t2) = co
+get_composer _ = error "Only functor types have type composers"
 
 
 --Determine if a given type is accepted by the input checker of a functor type
@@ -78,8 +78,8 @@ match_by_type e1 e2 = match_types (get_type e1) (get_type e2)
 
 --Form a compound expression
 compose :: Expression -> Expression -> Expression
-compose e1 e2 | get_side (get_type e1) == L = (Compound (get_output (get_type_composer e1)) e1 e2)
-              | get_side (get_type e1) == R = (Compound (get_output (get_type_composer e1)) e2 e1)
+compose e1 e2 | get_side (get_type e1) == L = (Compound ((get_composer (get_type e1)) (get_type e2)) e1 e2)
+              | get_side (get_type e1) == R = (Compound ((get_composer (get_type e1)) (get_type e2)) e2 e1)
               | get_side (get_type e1) == E = error "A functor type is not supposed to have the empty direction."
 compose _ _ = error "Cannot compose the expressions provided as arguments"
 
@@ -125,18 +125,27 @@ template_checker t ce = (\x ->  ce t x)
 template_composer :: Type -> (Type -> Type -> Type) -> Composer
 template_composer t op = (\x -> op t x)
 
-make_union_type :: Type -> Type -> Type
-make_union_type (UnionType t) (UnionType s) = (UnionType (remove_duplicates (t ++ s)))
-make_union_type (UnionType t) (Relation s) = (UnionType (remove_duplicates (t ++ [s])))
-make_union_type (Relation t) (UnionType s) = (UnionType (remove_duplicates (s ++ [t])))
-make_union_type (Relation t) (Relation s) = (UnionType ([t] ++ [s]))
-make_union_type _ _ = error "I cannot make a union type out of the types provided. "
+base_union_type :: Type -> Type -> Type
+base_union_type (UnionType t) (UnionType s) = (UnionType (remove_duplicates (t ++ s)))
+base_union_type (UnionType t) (Relation s) = (UnionType (remove_duplicates (t ++ [s])))
+base_union_type (Relation t) (UnionType s) = (UnionType (remove_duplicates (s ++ [t])))
+base_union_type (Relation t) (Relation s) = (UnionType ([t] ++ [s]))
+base_union_type _ _ = error "I cannot make a union type out of the types provided. "
 
 
 -- How should union types be managed? 
-make_composition_type :: Type -> Type -> Type
-make_composition_type (Relation (Pair t1 t2)) (Relation (Pair t2 t3)) = (Relation (Pair t1 t3))
-make_composition_type (Relation (Pair t1 t2)) (Relation (Pair t2 t3)) = (Relation (Pair t1 t3))
+base_composition_type :: Type -> Type -> Type
+base_composition_type (Relation (Pair t1 t2)) (Relation (Pair t3 t4)) = (Relation (Pair t1 t4))
+-- make_composition_type (Relation (UnionType ts)) (Relation (Pair t2 t3)) = elem t2 (seconds ts)
+base_composition_type _ _ = error "I cannot handle this case of type composition for relation composition."
+
+flip_pair_type :: Type -> Type
+flip_pair_type (Pair t1 t2) = (Pair t2 t1)
+flip_pair_type t = t -- This might introduce silent errors
+
+make_inversion_type :: Type -> Type
+make_inversion_type (Relation (Pair t1 t2)) = (Relation (Pair t1 t2))
+make_inversion_type (Relation (UnionType ts)) = (Relation (UnionType (map flip_pair_type ts)))
 
 -- How should the inversion of union types be managed?
 
@@ -153,9 +162,12 @@ demand_included _ _ = False
 -- This type checker accepts relations.
 demand_relation :: Type -> Bool -- (virtually all)
 demand_relation (Relation t) = True
+demand_relation (UnionType ts) = True
 demand_relation _ = False
 
 -- beam_filter (keep the N expressions that best fit the data)
+
+
 
 --Example
 
@@ -169,8 +181,24 @@ plancton_type = (Atomic "Plancton")
 day_type = (Atomic "Day_Moment")
 depth_type = (Atomic "Depth")
 
-int_on_int_type = (Functor (Atomic "R") R (Atomic "R"))
-binary_int_type = (Functor (Atomic "R") L int_on_int_type)
+make_difference_type :: Type -> Type
+make_difference_type t = (Functor id_type L (template_checker t demand_included) (\y -> y) id_type)
+
+make_composition_type :: Type -> Type
+make_composition_type t = (Functor id_type L (template_checker t demand_included) (template_composer t base_composition_type))
+
+make_intersection_type :: Type -> Type
+make_intersection_type t = (Functor id_type L (template_checker t demand_included) (\y -> y) id_type)
+
+make_union_type :: Type -> Type
+make_union_type t = (Functor id_type L (\x -> True) (template_composer t base_union_type) id_type)
+
+composition_op_type = (Functor id_type R demand_relation make_composition_type id_type)
+intersection_op_type = (Functor id_type R demand_relation make_intersection_type id_type) 
+union_op_type = (Functor id_type R demand_relation make_union_type id_type)
+difference_op_type = (Functor id_type R demand_relation make_difference_type id_type)
+inversion_op_type = (Functor id_type R demand_relation make_inversion_type id_type)
+closure_op_type = (Functor id_type R demand_relation (\x -> x) id_type)
 
 zero_lex = (Simple int_type "A")
 one_lex = (Simple int_type "B")
@@ -187,12 +215,12 @@ fourteen_lex = (Simple int_type "L")
 
 -- Need support for unary relations
 
-closure_lex = (Simple int_on_int_type "*") -- Preserves type
-inversion_lex = (Simple int_on_int_type "^") -- Should invert tuple types
-diff_lex = (Simple binary_int_type "-") -- both relations should have the same type (or the type of the second argument should be included in the first)
-uni_lex = (Simple binary_int_type "|") -- does this create union types? Does that make sense? Nop nop
-inter_lex = (Simple binary_int_type "&") -- this one absolutely requires its inputs to belong to the same type - no, wait, it works like relation difference
-comp_lex = (Simple binary_int_type ">") -- (A, B) -> (B, C) -> (A, C). But what if we have union types?
+closure_lex = (Simple closure_op_type "*") -- Preserves type
+inversion_lex = (Simple inversion_op_type "^") -- Should invert tuple types
+diff_lex = (Simple difference_op_type "-") -- both relations should have the same type (or the type of the second argument should be included in the first)
+uni_lex = (Simple union_op_type "|") -- does this create union types? Does that make sense? Nop nop
+inter_lex = (Simple intersection_op_type "&") -- this one absolutely requires its inputs to belong to the same type - no, wait, it works like relation difference
+comp_lex = (Simple composition_op_type ">") -- (A, B) -> (B, C) -> (A, C). But what if we have union types?
 
 -- Should I generalize operations?
 -- Each operation would have a type checker (T -> bool), or (T -> T -> bool), an application function (its semantics),
